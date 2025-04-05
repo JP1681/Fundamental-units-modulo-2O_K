@@ -1,7 +1,14 @@
+// NOTE: throughout this code, it is assumed that we are working in the real quadratic number field with discriminant
+// a positive integer D that is squarefree, and equal to 5 modulo 8. We are also reducing the fundamental unit modulo 2O_K.
+// Other values of D might not function correctly.
 long dwr(long a, long b){
+    // Floor division and modulo are implemented differently in C to in Python.
+    // This function simulates the Python operation.
     return (a - (((a % b) + b) % b)) / b;
 };
 long floorintsqrt(long D){
+    // If D is close to a square number, sometimes the sqrt function will return a value that is off by 1.
+    // This function checks whether the value is wrong and fixes it if it is.
     long floorRootD = floor(sqrt((float)D));
     if (floorRootD*floorRootD>D){
         return floorRootD - 1;
@@ -12,6 +19,9 @@ long floorintsqrt(long D){
     }
 }
 void extgcd(long a, long b, long *o_s, long *o_t, long *o_r){
+    // This is (roughly) the standard extended Euclidean algorithm.
+    // The code is modified from the pseudocode in the Wikipedia article, see the following link.
+    // https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Pseudocode
     long old_r = a;
     long r = b;
     long old_s = 1;
@@ -40,18 +50,23 @@ void extgcd(long a, long b, long *o_s, long *o_t, long *o_r){
     *o_r = old_r;
 }
 long mod(long a, long b){
+    // Floor division and modulo are implemented differently in C to in Python.
+    // This function simulates the Python operation.
     return ((a%b)+b)%b;
 }
-void abcsolve(long a, long b, long c, long *xn, long *xm, long *y, long *g2){
+void abcsolve(long a, long b, long c, long *x1, long *x2, long *x3, long *g){
+    // Solves the equation a*x1 + b*x2 + c*x3 = g, where g is gcd(a,b,c).
     long n,m,G1,x,Y,G2;
     extgcd(a,b,&n,&m,&G1);
     extgcd(G1,c,&x,&Y,&G2);
-    *xn = x*n;
-    *xm = x*m;
-    *y = Y;
-    *g2 = G2;
+    *x1 = x*n;
+    *x2 = x*m;
+    *x3 = Y;
+    *g = G2;
 }
 void idealProduct(long D, long Q1, long P1, long Q2, long P2, long *S, long *Q, long *P){
+    // Computes the ideal product (Q1,P1) * (Q2,P2) without reduction, in the real quadratic field of discriminant D.
+    // This algorithm is taken from Section 5.4 of Solving the Pell Equation, by Jacobson and Williams. MR2466979.
     long r = 2;
     long Q1onr = dwr(Q1,r);
     long Q2onr = dwr(Q2,r);
@@ -66,6 +81,10 @@ void idealProduct(long D, long Q1, long P1, long Q2, long P2, long *S, long *Q, 
     *P = mod(P2+U*Q2onrS,*Q);
 }
 void NUDUPLJvdP(long D, long u, long v, long w, long *u3, long *v3, long *a, long *b, long *c){
+    // Computes a near-reduced double, (u3,v3,w3) of a binary quadratic form, (u,v,w) with discriminant D. Also computes the
+    // factor induced by reduction, \frac{1}{\gamma}, where \gamma is \frac{a+b\sqrt{D}}{c}.
+    // This algorithm is the NUDUPL algorithm described in Computational aspects of NUCOMP, by 
+    // Jacobson and van der Poorten, but computes \gamma as in the algorithm from A note on NUCOMP, by van der Poorten.
     long L,x,y,G,Ax,By,Dy,Bx,bx,by,z,q,t,ax,ay,dx,U3,V3,w3,Q1,dy;
     L = floorintsqrt(floorintsqrt(dwr(D,4)));
     //Step 1
@@ -130,6 +149,10 @@ void NUDUPLJvdP(long D, long u, long v, long w, long *u3, long *v3, long *a, lon
     return;
 }
 void NUCOMPJvdP(long D,long u1, long v1, long w1, long u2, long v2, long w2, long *u3, long *v3, long *A, long *B, long *C){
+    // Computes a near-reduced composite, (u3,v3,w3) of two binary quadratic forms, (u1,v1,w1) and (u2,v2,w2), both with discriminant D.
+    // Also computes the factor induced by reduction, \frac{1}{\gamma}, where \gamma is \frac{a+b\sqrt{D}}{c}.
+    // This algorithm is the NUCOMP algorithm described in Computational aspects of NUCOMP, by 
+    // Jacobson and van der Poorten, but computes \gamma as in the algorithm from A note on NUCOMP, by van der Poorten.
     long Ax,Bx,By,Cy,Dy,x,y,z,G,H,l,bx,by,q,t,ax,ay,Q1,Q2,Q3,Q4,cx,dx,temp,L,s,m,F,w3,cy,dy,U3,V3,b,c;
     if (w1<w2){
         temp = u1;
@@ -225,6 +248,10 @@ void NUCOMPJvdP(long D,long u1, long v1, long w1, long u2, long v2, long w2, lon
     return;
 }
 void NUCOMPchoose(long D, long u1, long v1, long u2, long v2, long *u, long *v, long *a, long *b, long *c){
+    // This algorithm takes two ideals, (u1,v1) and (u2,v2). If the norm of either ideal is small (i.e. <=50), it is preferable to
+    // use the ideal product algorithm to get a composite. Otherwise, the ideals are converted to their equivalent
+    // binary quadratic forms, and passed to NUDUPL (if they are the same) or NUCOMP (if they are different). The resulting composite
+    // binary quadratic form is converted back to an ideal and returned, along with the factor induced by reduction during NUCOMP/NUDUPL.
     long w1,w2,u3,v3,A,B,C,U;
     u1 = abs(u1);
     u2 = abs(u2);
@@ -256,6 +283,7 @@ void NUCOMPchoose(long D, long u1, long v1, long u2, long v2, long *u, long *v, 
     return;
 }
 void NUCOMP(long D, long Q1, long P1, long Q2, long P2, long *newQprime, long *newPprime, long *A, long *B, long *C, int *check){
+    // This algorithm does not seem to work correctly for large values of D.
     long floorRootD = floorintsqrt(D);
     int r = 2;
     if (Q1<=Q2){
@@ -363,11 +391,14 @@ void NUCOMP(long D, long Q1, long P1, long Q2, long P2, long *newQprime, long *n
     }
 }
 struct QPTtuple {
+    // Each ideal is stored as a struct, containing the values Q and P such that the ideal is [\frac{Q}{2}, \frac{P+\sqrt{D}}{2}].
+    // For brevity we notate this as (Q,P). theta is the ideal's generator, reduced mod 2O_K.
     long Q;
     long P;
     int theta;
 };
 long gcd(long a, long b){
+    // The standard Euclidean algorithm for gcd.
     long old_r = a;
     long r = b;
     while (r!=0){
@@ -379,6 +410,10 @@ long gcd(long a, long b){
     return old_r;
 }
 int Ccoset5M8(long x, long y, long z, bool s){
+    // This determines which coset of 2O_K the values \frac{x+y\sqrt{D}}{z} is in.
+    // If it is in the same coset as 0, return -1 (this should never happen).
+    // If in the same coset as 1, return 0. If in the same coset as \frac{1+\sqrt{D}}{2}, return 1.
+    // If in the same coset as \frac{3+\sqrt{D}}{2}, return 2.
     if (!s){
         long f = gcd(x,gcd(y,z));
         if (z<0){
@@ -407,6 +442,7 @@ int Ccoset5M8(long x, long y, long z, bool s){
     };
 }
 int CFFcoset5M8(long x, long y, long z){
+    // Does the same as Ccoset5M8, but is extended to the localisation of O_K at the prime 2.
     if (z<0){
         x=-x;y=-y,z=-z;
     };
@@ -421,6 +457,9 @@ int CFFcoset5M8(long x, long y, long z){
     };
 }
 void reduceQPred(long D,long Q,long P,long *q, long *p, int *ctheta){
+    // Given an ideal (Q,P), computes a reduced ideal (q,p) equivalent to it. ctheta is the ratio of their generators, reduced mod 2O_K.
+    // This algorithm is modified from the reduction algorithm described in Section 5.2 and Section 3.1 of Solving the Pell Equation,
+    // by Jacobson and Williams. MR2466979.
     long floorRootD = floorintsqrt(D);
     long floorRootD32 = floorintsqrt(dwr(D*9,4));
     int sD = 2;
@@ -449,6 +488,9 @@ void reduceQPred(long D,long Q,long P,long *q, long *p, int *ctheta){
     *ctheta = Ctheta;
 }
 int reduceQPfull(long D, long Q, long P){
+    // This function is not used in the code but is helpful for checking. The function reduceQPfull(D,2,1)
+    // will give the reduced fundamental unit, using continued fractions only (no infrastructure). Adapted from 
+    // the algorithm on page 59 of Solving the Pell Equation, by Jacobson and Williams. MR2466979.
     long floorRootD = floorintsqrt(D);
     int sD = 2;
     long q0 = dwr(P+floorRootD,Q);
@@ -475,6 +517,7 @@ int reduceQPfull(long D, long Q, long P){
     return theta;
 }
 
+// The next three functions are hashes of an ideal (i.e. of the values Q and P). These functions were written by GPT-4.
 uint hash1(long Q, long P) {
     return (uint)((Q ^ P) & ($BLOOM_SIZE - 1));
 }
@@ -487,6 +530,7 @@ uint hash3(long Q, long P) {
     return (uint)((Q + P * 17) & ($BLOOM_SIZE - 1));
 }
 void bloom_insert(uchar* bloom, long Q, long P) {
+    // Inserts an ideal (Q,P) into the Bloom filter. This function was written by GPT-4.
     uint h1 = hash1(Q, P);
     uint h2 = hash2(Q, P);
     uint h3 = hash3(Q, P);
@@ -496,6 +540,9 @@ void bloom_insert(uchar* bloom, long Q, long P) {
     bloom[h3 / 8] |= (1 << (h3 % 8));
 }
 int bloom_maybe_contains(uchar* bloom, long Q, long P) {
+    // This function checks (probabilistically) whether a given ideal is in the Bloom filter. If the answer is no,
+    // then the ideal is definitely not there. If the answer is yes, the list of ideals must be checked to confirm this.
+    // This function was written by GPT-4.
     uint h1 = hash1(Q, P);
     uint h2 = hash2(Q, P);
     uint h3 = hash3(Q, P);
@@ -506,6 +553,11 @@ int bloom_maybe_contains(uchar* bloom, long Q, long P) {
 }
 
 void reduceQPbaby(long D, long Q, long P, struct QPTtuple CQPdict[], uchar bloom[], long correctIdeal[], int* cReducedTheta, bool* endEarlyFlag, int* BS){
+    // This function constructs the baby step list of ideals as described in Section 7.4 of 
+    // Solving the Pell Equation, by Jacobson and Williams. MR2466979. It will return this list, along with a Bloom filter for the ideals,
+    // the starting ideal \mathfrak{b}_1 (correctIdeal) and its generator (cReducedTheta). If the fundamental unit is found without
+    // proceeding to the baby step stage (see page 176 of Solving the Pell Equation), then we return with endEarlyFlag marked as true,
+    // along with the reduced unit (cReducedTheta). The number of baby steps is also returned (BS).
     float rootD = sqrt((float)D);
     long floorRootD = floorintsqrt(D);
     long q0 = dwr(P+floorRootD,Q);
@@ -572,8 +624,10 @@ void reduceQPbaby(long D, long Q, long P, struct QPTtuple CQPdict[], uchar bloom
     }
     *BS = dictIndex;
 }
-// Compare function for sorting by Q, then P
+
 int is_less(struct QPTtuple a, struct QPTtuple b) {
+    // This function determines whether an ideal is 'less' than another (for sorting purposes). We sort by Q, then by P.
+    // This function was written by GPT-4.
     if (a.Q < b.Q) return 1;
     if (a.Q > b.Q) return 0;
     // Qs are equal, compare P
@@ -581,6 +635,10 @@ int is_less(struct QPTtuple a, struct QPTtuple b) {
 }
 
 void quicksort(struct QPTtuple *data, int length) {
+    // This function sorts the list of ideals using quicksort. Without a Bloom filter, this is much faster than a simple search on the
+    // unsorted list of ideals. But with a Bloom filter, most of the requests to search the baby step list are quickly dismissed, and
+    // so the cost of sorting the list outweighs the benefit of using binary search. At present, this function is not used.
+    // This function was written by GPT-4.
     int stack[600];
     int top = -1;
 
@@ -623,6 +681,8 @@ void quicksort(struct QPTtuple *data, int length) {
     }
 }
 int checkContains(long Q, long P, struct QPTtuple *data, int length) {
+    // Checks whether a sorted list of ideals contains the ideal (Q,P), using binary search.
+    // This functions was written by GPT-4 and is presently not used (see the comments for quicksort).
     int low = 0;
     int high = length - 1;
 
@@ -646,6 +706,8 @@ int checkContains(long Q, long P, struct QPTtuple *data, int length) {
 }
 
 int checkContainsUnsorted(long Q, long P, struct QPTtuple *data, int length) {
+    // Checks whether an unsorted list of ideals contains the ideal (Q,P), using linear search.
+    // This function was written by GPT-4.
     for (int i = 0; i < length; i++) {
         if (data[i].Q == Q && data[i].P == P) {
             return data[i].theta;
@@ -654,12 +716,16 @@ int checkContainsUnsorted(long Q, long P, struct QPTtuple *data, int length) {
     return -1;
 }
 int fastCheck(long Q, long P, struct QPTtuple* data, int length, uchar* bloom) {
+    // Checks (definitively) whether the list of ideals contains the ideal (Q,P), by first consulting the Bloom filter,
+    // and checking the list manually if necessary. This function was written by GPT-4.
     if (!bloom_maybe_contains(bloom, Q, P)) {
         return -1;  // definitely not present
     }
     return checkContainsUnsorted(Q, P, data, length);  // maybe present
 }
 void find_FUnit(long D, int *FU, int *BS, int *GS){
+    // Modified from the infrastructure algorithm described in Section 7.4 of Solving the Pell Equation,
+    // by Jacobson and Williams. MR2466979.
     long P = 1;
     long Q = 2;
     const int N = $mainDictSize;
@@ -717,6 +783,8 @@ void find_FUnit(long D, int *FU, int *BS, int *GS){
     return;    
 };
 __kernel void sum_array(__global const long *array, __global int *result, __global int *babystep, __global int *giantstep) {
+    // This is the function called from Python. It just runs the find_FUnit functions and writes the output to the buffer arrays.
+    // This function was modified from code given by GPT-4.
     int gid = get_global_id(0);
     long D = array[gid];
     int FU;
